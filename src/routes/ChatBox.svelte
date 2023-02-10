@@ -6,11 +6,15 @@
     import { get } from 'svelte/store'
 
     import ChatMessageList from './ChatMessageList.svelte'
+    import { Input } from 'postcss';
 
     let opponent : any
     let myCredential : any
     let messages : any[] = []
     let room : any = undefined
+
+    let someoneTyping : any = undefined
+    let iWasTyping : Boolean = false
 
     onMount(async () => {
         console.log('chatbox mounted')
@@ -34,10 +38,33 @@
             }
         })
 
+        const subListenToTyping = await listenToTyping()
+
         return () => {
             subActiveChat()
+            subListenToTyping()
         }
     })
+
+    async function listenToTyping(){
+        const sio : any = await socket()
+        const listener = ( response : any ) => {
+            if( response.code in [ 'TYPE_START', 'TYPE_END' ] ){
+                if( response.code === 'TYPE_END' && 
+                    someoneTyping?.sender?.id === response.detail.sender.id){
+                    someoneTyping = undefined
+                    return
+                }
+
+                someoneTyping = response.detail
+            }
+        }
+
+        sio.on('chat-send', listener)
+        return () => {
+            sio.off('chat-send', listener)
+        }
+    }
 
     async function onSendChat( this : any, e : any ){
         const sio : any = await socket()
@@ -73,7 +100,48 @@
         this.message.value = ''
     }
 
+    async function onInputKeydown( this : HTMLInputElement ){
+        if( this.value.length <= 0 || iWasTyping ) return
 
+        iWasTyping = true
+        const sio : any = await socket()
+        sio.emit('chat-send', {
+            type : 'TYPE_START',
+            payload : {
+                room
+            }
+        })
+    }
+
+    async function onInputBlur(){
+        const sio : any = await socket()
+        sio.emit('chat-send', {
+            type : 'TYPE_END',
+            payload : {
+                room
+            }
+        })
+        iWasTyping = false
+    }
+
+    async function onAttachClick(){
+        const sio : any = await socket()
+
+        const inputDOM = document.createElement('input')
+        inputDOM.setAttribute('type', 'file')
+
+        inputDOM.addEventListener('change', function( this : any ){
+            if( this.files.length > 0 ){
+                sio.emit('chat-attach', {
+                    file : this.files[0],
+                    filename : this.files[0].name,
+                    room
+                })
+            }
+        })
+
+        inputDOM.click()
+    }
 </script>
 
 <style>
@@ -90,9 +158,13 @@
     <ChatMessageList {messages} />
     <div class="p-3">
         <form on:submit|preventDefault={onSendChat} class="chat-input flex flex-row bg-slate-800 rounded">
-            <button class="w-14 text-white shrink-0 hover:bg-slate-900 transition-colors">@</button>
-            <input name="message" type="text" class="flex-1 bg-transparent p-3 text-gray-200 outline-none border-0" placeholder="Ketik pesan disini ..." />
+            <button type="button" on:click={onAttachClick} class="w-14 text-white shrink-0 hover:bg-slate-900 transition-colors">@</button>
+            <input on:keydown={onInputKeydown} on:blur={onInputBlur} name="message" type="text" class="flex-1 bg-transparent p-3 text-gray-200 outline-none border-0" placeholder="Ketik pesan disini ..." />
             <button class="w-20 text-white shrink-0 hover:bg-slate-900 transition-colors" type="submit">SEND</button>
         </form>
+
+        {#if someoneTyping}
+        <div class="text-xs text-gray-400 px-3 py-2">sedang mengetik ...</div>
+        {/if}
     </div>
 </div>

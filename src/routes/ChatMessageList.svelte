@@ -3,6 +3,7 @@
     export let messages : any = []
 
     function isOwnMessage( message : any , myCredential : any){
+        if( !myCredential ) return false
         return message.sender.id === myCredential.account.id && message.sender.type.toUpperCase() === myCredential.type.toUpperCase()
     }
 
