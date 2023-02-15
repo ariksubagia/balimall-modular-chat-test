@@ -1,5 +1,7 @@
 import axios from 'axios'
 import api from '$lib/helpers/api'
+import { disconnect } from '$lib/helpers/socket'
+import { rooms, chat, activeRoom} from '$lib/stores/chat'
 import { tokens, credential } from '$lib/stores/authentication'
 import { get } from 'svelte/store'
 
@@ -95,4 +97,10 @@ export const logout = function(){
     })
 
     credential.update(x => undefined)
+
+    rooms.update(x => null)
+    chat.update(x => null)
+    activeRoom.update(x => null)
+
+    disconnect()
 }
