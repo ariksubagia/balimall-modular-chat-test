@@ -4,6 +4,7 @@
     import UserCard from './UserCard.svelte'
 
     import socket, { disconnect } from '$lib/helpers/socket'
+    import { chatInit } from '$lib/helpers/chat'
     import startChat from '$lib/helpers/startChat'
     import clearChat from '$lib/helpers/clearChat'
 
@@ -65,9 +66,19 @@
         }
     }
 
-    function addMessageToStore( message : any ){
+    async function addMessageToStore( message : any ){
+        let listRoom = get(rooms)
+
+        let currentRoomIndex = listRoom.findIndex(( currentRoom : any ) => currentRoom.id === message.room)
+        if(currentRoomIndex < 0){
+            await chatInit()
+            listRoom = get(rooms)
+            currentRoomIndex = listRoom.findIndex(( currentRoom : any ) => currentRoom.id === message.room)
+        }
+
         rooms.update(( roomList : any ) => {
-            let currentRoomIndex = roomList.findIndex(( currentRoom : any ) => currentRoom.id === message.room)
+            console.log(currentRoomIndex)
+
             roomList[currentRoomIndex].messages = [ ...(roomList[currentRoomIndex]?.messages ?? []), message ]
             
             const currentActiveRoom = get(activeRoom)

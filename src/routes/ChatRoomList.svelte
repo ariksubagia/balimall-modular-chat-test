@@ -2,6 +2,7 @@
     import ChatRoomCard from "./ChatRoomCard.svelte"
     import normalizeChatRoom from '$lib/helpers/normalizeChatRoom'
     import socket from '$lib/helpers/socket'
+    import { chatInit } from '$lib/helpers/chat'
     import { activeRoom, rooms } from '$lib/stores/chat'
 
     import { onMount } from 'svelte'
@@ -22,6 +23,8 @@
             if( (response.code ?? '').toUpperCase() !== 'CONVERSATIONS' ) return
             if( (response.detail ?? []).length <= 0 ) return rooms.update(x => [])
 
+            console.log('chat-update listener >>> ', response)
+
             rooms.update(x => response.detail.map((room : any) => {
                 return normalizeChatRoom(room)
             }))
@@ -29,13 +32,7 @@
 
         sio.on('chat-update', listener)
 
-        sio.emit('chat-init', undefined, ( response : any ) => {
-            if( (response.detail ?? []).length <= 0 ) return rooms.update(x => [])
-
-            rooms.update(x => response.detail.map((room : any) => {
-                return normalizeChatRoom(room)
-            }))
-        })
+        await chatInit()
 
         return () => {
             sio.off('chat-update', listener)
@@ -46,6 +43,7 @@
         return () => {
             activeRoom.update((x : any) => {
                 const dataRooms = get(rooms)
+                console.log(dataRooms)
                 return dataRooms.find((y : any) => y.id === chatRoom.id)
             })
         }
